@@ -1,6 +1,8 @@
-from flask import Flask
+from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Api, Resource, reqparse, abort, fields, marshal_with
+import requests
+
 
 app = Flask(__name__)
 api = Api(app)
@@ -22,24 +24,41 @@ class Drink(db.Model):
         return f"{self.name} - {self.description}"
 
 
-resource_fields = {
-    'id': fields.Integer,
-    'name': fields.String,
-    'description': fields.String
-}
+@app.route('/drinks')
+def get_drinks():
+    drinks = Drink.query.all()
 
-# @app.route('/drinks')
-# def get_drinks():
-#     return {"drinks": "drink data"}
-#
-#
-# @app.route('/')
-# def index():
-#     return "Hello!"
+    output = []
+    for drink in drinks:
+        drink_data = {'name': drink.name, 'description': drink.description}
+        output.append(drink_data)
+
+    return {"drinks": output}
 
 
-api.add_resource(Drink, "/drink/<int:drink_id>")
+@app.route('/drinks/<id>')
+def get_drink(id):
+    drink = Drink.query.get_or_404(id)
+    return {"name": drink.name, "description": drink.description}
 
-if __name__ == "__main__":
-    print("==" * 100)
-    app.run(debug=True)
+
+@app.route('/drinks', methods=['POST'])
+def add_drink():
+    drink = Drink(name=request.json['name'], description=request.json['description'])
+    db.session.add(drink)
+    db.session.commit()
+    return {"id": drink.id}
+
+
+@app.route('/drinks/<id>', methods=['DELETE'])
+def delete_drink():
+    drink = Drink.query.get(id)
+    if drink is None:
+        return {"error": "not found"}
+
+    db.session.delete(drink)
+    db.session.commit()
+    return {"message": "Deleted!"}
+
+
+
